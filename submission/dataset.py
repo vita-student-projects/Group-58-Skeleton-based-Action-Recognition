@@ -9,10 +9,16 @@ class NTU60_HRNET(Dataset):
             'val': 'xsub_val'
     }
     
-    def __init__(self, data_path, label_path, nb_pers_max, nb_frames, nb_joints, phase):
+    def __init__(self, data_path, label_path, nb_pers_max, nb_frames, nb_joints, permute_order, phase):
 
       super(NTU60_HRNET, self).__init__()
+
+      # Choose device
+      self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+      print('device data', self.device)
+
       # Store class attributes
+      self.permute_order = permute_order
       self.phase = phase
 
       self.nb_pers_max = nb_pers_max
@@ -45,9 +51,12 @@ class NTU60_HRNET(Dataset):
         
       skeletons = torch.from_numpy(skeletons)
       print('before', skeletons.size())  
-      skeletons = torch.permute(skeletons, (0, 3, 2, 1, 4))
+      skeletons = torch.permute(skeletons, self.permute_order).to(self.device)
       print('after', skeletons.size())  
       labels = torch.from_numpy(labels)
+      #if self.phase == 'train':
+      labels = labels.to(self.device)
+
       return skeletons, labels, names
 
 
