@@ -28,8 +28,8 @@ class NTU60_HRNET(Dataset):
     
 
     def collect_data(self):
-      skeletons = np.zeros((self.data_size[0], self.nb_pers_max, self.nb_frames, self.nb_joints, 2))
-      labels = np.zeros(self.data_size)
+      skeletons = np.zeros((self.data_size[0], self.nb_pers_max, self.nb_frames, self.nb_joints, 2), dtype=np.float32)
+      labels = np.zeros(self.data_size, dtype=np.int64)
       names = []
 
       frame_dir = []
@@ -42,8 +42,11 @@ class NTU60_HRNET(Dataset):
         skeletons[i, :self.raw_data['annotations'][ind]['keypoint'].shape[0]] = self.raw_data['annotations'][ind]['keypoint'][:, :self.nb_frames]
         labels[i] = self.raw_data['annotations'][ind]['label']
         names.append(self.raw_data["split"][self.phase_dict[self.phase]][i])
-          
+        
       skeletons = torch.from_numpy(skeletons)
+      print('before', skeletons.size())  
+      skeletons = torch.permute(skeletons, (0, 3, 2, 1, 4))
+      print('after', skeletons.size())  
       labels = torch.from_numpy(labels)
       return skeletons, labels, names
 
