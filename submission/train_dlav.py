@@ -7,12 +7,26 @@ import pickle
 import numpy as np
 from c3d_modified_dlav import C3dModified, Model
 import os
-import time 
+import time
+
+from dataset import NTU60_HRNET
 
 NUM_FRAMES_MIN = 32
 NUM_PERS_MAX = 2
 COORD_2D = 2
+NUM_JOINTS = 17
+BATCH_SIZE = 50
 
+data_path = '../data/nturgbd/ntu60_hrnet.pkl'
+label_map_path = '../tools/data/label_map/nturgbd_120.txt'
+
+train_dataset = NTU60_HRNET(data_path, label_map_path, NUM_PERS_MAX, NUM_FRAMES_MIN, NUM_JOINTS, "train")
+val_dataset = NTU60_HRNET(data_path, label_map_path, NUM_PERS_MAX, NUM_FRAMES_MIN, NUM_JOINTS, "val")
+
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+"""
 X_train = torch.zeros(4000, 17, NUM_FRAMES_MIN, NUM_PERS_MAX, COORD_2D)
 y_train = torch.zeros(4000)
 X_test = torch.zeros(16000, 17, NUM_FRAMES_MIN, NUM_PERS_MAX, COORD_2D)
@@ -21,7 +35,7 @@ y_test = torch.zeros(16000)
 print('What we want', X_train.shape, y_train.shape)
 
 # --------------------- Load data ---------------------------------
-"""
+
 data = pickle.load(open('../../../data/nturgbd/ntu60_hrnet.pkl', "rb"))
 
 skeletons = []
@@ -75,6 +89,6 @@ print('Hello world!')
 
 TestModelDlav = Model()
 start = time.perf_counter()
-TestModelDlav.train(X_train[0:1000], y_train[0:1000], num_epochs)
+TestModelDlav.training(train_loader, val_loader, num_epochs, '/outputs')
 stop = time.perf_counter()
 print(f'The training is done in {stop - start} seconds')

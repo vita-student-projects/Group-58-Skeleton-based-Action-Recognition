@@ -37,21 +37,79 @@ class Model():
         self.model.load_state_dict(checkpoint)
         # pass
 
-    def train(self, train_input, train_target, num_epochs) -> None:
-        torch.set_grad_enabled(True)
-        # :train_input: tensor of size (N, J, F, M, D)
+    def train(self, loader):
+		# Set the model in train mode
+		self.model.training = True
+		
+		# Iterate over the batches
+		full_outputs = []
+		full_labels = []
+		losses = []
+		
+		for batch in loader:
+			skeletons, labels, _ = batch
+			pred = self.model(skeletons)
+			loss = self.criterion(pred, labels)
+			self.optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+			full_outputs.append(pred)
+			full_labels.append(labels)
+			losses.append(loss)
+		
+		# Concat
+		full_outputs = torch.cat(full_outputs).cpu()
+		full_labels = torch.cat(full_labels).cpu()
+		losses = torch.stack(losses).mean().cpu()
+		
+		acc = self.accuracy(full_outputs, full_labels)
+		return acc, full_outputs, full_labels, losses
+		
+	@torch.no_grad()
+	def validate(self, loader):
+		self.model.training = True
 
-        # :train_target: tensor of size (N, )
-        batch_size = 50
-        train_input = train_input.float().to(self.device)
-        train_target = train_target.float().to(self.device)
-        for epoch in range(num_epochs):
-            for b in range(0, train_input.size(0), batch_size):
-                output = self.model(train_input.narrow(0, b, batch_size))
-                loss = self.loss(output, train_target.narrow(0, b, batch_size))
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+		full_outputs = []
+		full_labels = []
+		losses = []
+		for batch in loader:
+			skeletons, labels, _ = batch
+			pred = self.model(skeletons)
+			loss = self.criterion(pred, labels)
+			full_outputs.append(pred)
+			full_labels.append(labels)
+			losses.append(loss)
+		
+		full_outputs = torch.cat(full_outputs).cpu()
+		full_labels = torch.cat(full_labels).cpu()
+		losses = torch.stack(losses).mean().cpu()
+		
+		acc = accuracy(full_outputs, full_labels)
+		return acc, full_outputs, full_labels, losses
+	
+	def training(self, train_loader, val_loader, nb_epochs, model_savepath):
+		epochs = nb_epochs
+		best_acc = 0
+		model_savepath = model_savepath
+
+		for epoch in range(epochs):
+			print(f"Epoch {epoch+1}\n-------------------------------")
+
+			# Train
+			### YOUR CODE
+			train_acc, _, _, train_loss = self.train(train_loader)
+			print(f"training metrics : accuracy = {train_acc}  loss = {train_loss}")
+
+			# Evaluate
+			### YOUR CODE
+			val_acc, _, _, val_loss = self.validate(val_loader)
+			print(f"validation metrics : accuracy = {val_acc}  loss = {val_loss}")
+			
+			# Save the model
+			if val_acc > best_acc:
+				### YOUR CODE
+				best_acc = val_acc
+				torch.save(model, model_savepath + 'bestmodel.pth')
 
     def save_model(self):
         torch.save(self.model.state_dict(), 'bestmodel.pth')
