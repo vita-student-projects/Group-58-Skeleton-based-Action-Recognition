@@ -1,12 +1,6 @@
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
-
-from mmcv.cnn import ConvModule, kaiming_init
-from mmcv.runner import load_checkpoint
 from torchinfo import summary
-import pickle
-import numpy as np
 import os
 import time
 
@@ -28,17 +22,16 @@ data_path = f'{os.getcwd()}/data/nturgbd/ntu60_hrnet.pkl'
 label_map_path = f'{os.getcwd()}/tools/data/label_map/nturgbd_120.txt'
 
 model_name = 'pjfd'
+model_savepath = f'{os.getcwd()}/outputs/{model_name}/'
 
 if model_name == 'jfpd':
   permute_order = (0, 3, 2, 1, 4)
   model = C3dModifiedJointFramePersDim()
-  input_size = (batch_size, NUM_JOINTS, NUM_FRAMES_MIN, NUM_PERS_MAX, COORD_2D)
+  input_size = (batch_size, NUM_JOINTS, NUM_FRAMES_MIN, NUM_PERS_MAX, COORD_2D) 
 elif model_name == 'pjfd':
   permute_order = (0, 1, 2, 3, 4)
   model = C3dModifiedPersJointFrameDim()
   input_size = (batch_size, NUM_PERS_MAX, NUM_FRAMES_MIN, NUM_JOINTS, COORD_2D)
-
-
 
 
 train_dataset = NTU60_HRNET(data_path, label_map_path, NUM_PERS_MAX, NUM_FRAMES_MIN, NUM_JOINTS, permute_order, "train")
@@ -48,13 +41,10 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
 # Train model
-
-print('Hello world!')
-
 summary(model, input_size=input_size)
 
 TestModelDlav = Model(model)
 start = time.perf_counter()
-TestModelDlav.training(train_loader, val_loader, num_epochs, f'{os.getcwd()}/outputs/')
+TestModelDlav.training(train_loader, val_loader, num_epochs, model_savepath)
 stop = time.perf_counter()
 print(f'The training is done in {stop - start} seconds')

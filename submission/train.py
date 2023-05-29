@@ -1,30 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from mmcv.cnn import ConvModule, kaiming_init
-from mmcv.runner import load_checkpoint
-from torchinfo import summary
-import pickle
 import numpy as np
-from pathlib import Path
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
+import cv2
 
-
-# Datashape num_joints x num_frames x 2D coord. x num_pers
-NUM_FRAMES_MIN = 32
-NUM_PERS_MAX = 2
-COORD_2D = 2
 
 
 torch.set_grad_enabled(True)
 class Model():
-    def __init__(self, model) -> None:
-        # instantiate model + optimizer + loss function + any other stuff you need
+    def __init__(self, model):
+        # instantiate model + optimizer + loss function
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        #self.device = torch.device('cpu')
         print('device', self.device)
         self.model = model.to(self.device)
 
@@ -32,17 +21,14 @@ class Model():
         self.criterion = nn.MSELoss()
         self.output = None
 
-    def load_pretrained_model(self) -> None:
+    def load_pretrained_model(self, model_savepath):
         # This loads the parameters saved in bestmodel.pth into the model
-        model_path = Path(__file__).parent / "bestmodel.pth"
-        checkpoint = torch.load(model_path, map_location=self.device)
+        checkpoint = torch.load(model_savepath, map_location=self.device)
         self.model.load_state_dict(checkpoint)
 
     def train(self, loader):
-        # Set the model in train mode
         self.model.training = True
 
-        # Iterate over the batches
         full_outputs = []
         full_labels = []
         losses = []
@@ -58,7 +44,6 @@ class Model():
             full_labels.append(labels)
             losses.append(loss)
 
-        # Concat
         full_outputs = torch.cat(full_outputs).cpu()
         full_labels = torch.cat(full_labels).cpu()
         losses = torch.stack(losses).mean().cpu()
@@ -90,9 +75,8 @@ class Model():
         return acc, full_outputs, full_labels, losses
 	
     def training(self, train_loader, val_loader, nb_epochs, model_savepath):
-        # Check if the folder exists
+        
         if not os.path.exists(model_savepath):
-          # If the folder does not exist, create it
           os.makedirs(model_savepath)
 
         epochs = nb_epochs
@@ -121,7 +105,7 @@ class Model():
             # Save the model
             if val_acc > best_acc:
                 best_acc = val_acc
-                torch.save(self.model, model_savepath + 'bestmodel.pth')
+				self.save_model(model_savepath)
 
         np.save(model_savepath+'train_acc.npy', list_train_acc)
         np.save(model_savepath+'train_loss.npy', list_train_loss)
@@ -144,30 +128,59 @@ class Model():
         axs[1].set_xlabel("Epochs")
         axs[1].set_ylabel("MSE")
 
-        plt.savefig(model_savepath+ "fig_train_skeleton.png")
+        plt.savefig(model_savepath + "fig_train_skeleton.png")
         plt.show()
 
+    def save_model(self, model_savepath):
+        torch.save(self.model.state_dict(), model_savepath + 'bestmodel.pth')
+	
+	@torch.no_grad()
+    def predict(self, loader):
+		self.model.training = False
 
+        full_outputs = []
+        full_labels = []
+        losses = []
+		full_names = []
+        for batch in tqdm(loader):
+            skeletons, labels, names = batch
+            labels_one_hot = F.one_hot(labels, 60).float()
+            pred = self.model(skeletons)
+            loss = self.criterion(pred, labels_one_hot)
+            full_outputs.append(pred)
+            full_labels.append(labels)
+            losses.append(loss)
+			full_names = np.concatenate((full_names, names))
 
+        full_outputs = torch.cat(full_outputs).cpu()
+        full_labels = torch.cat(full_labels).cpu()
+        losses = torch.stack(losses).mean().cpu()
 
-    def save_model(self):
-        torch.save(self.model.state_dict(), 'bestmodel.pth')
-
-    def predict(self, test_input) -> torch.Tensor:
-        # : test_input : tensor of size (N1, C, H, W) that has to be denoised by the trained
-        # or the loaded network.
-
-        # : returns a tensor of the size (N1, C, H, W)
-        test_input = test_input.float().to(self.device)
-        self.output = self.model(test_input)
-        self.output = torch.where(self.output <= 255, self.output, torch.tensor([255]).type(torch.FloatTensor).to(self.device))
-        self.output = self.output.cpu()
-        return self.output
+        acc = self.accuracy(full_outputs, full_labels)
+        return acc, full_outputs.detach().numpy(), full_labels.numpy(), losses.detach().numpy(), full_names
+		
+	def show_prediction(skeletons, output, label, name, label_dict, prediction_savepath, video_path):
+	
+		size = (1920, 1080)
+		font = cv2.FONT_HERSHEY_SIMPLEX
+	
+		out = cv2.VideoWriter(prediction_savepath + name + 'avi',cv2.VideoWriter_fourcc(*'DIVX'), 15, size)
+		
+		for i in range(skeletons.shape[1]):
+			img = np.zeros((size[0], size[1], 3), dtype=np.uint8)
+			
+			for j in range(skeletons.shape[0]):
+				color = (255*(j%2), 0, 255*((j+1)%2))
+				for k in range(skeletons.shape[2]):
+					cv2.circle(img,(skeletons[j][i][k][0],skeletons[j][i][k][1]), 5, color, -1)
+					
+			
+			cv.putText(img,label_dict[label],(10,500), font, 4,(255,255,255),2,cv.LINE_AA)
+			out.write(img)
+		
+		out.release()
+		
 
     def accuracy(self, outputs, labels):
-        """
-        Computes the accuracy of predictions based on the model outputs (NxK: N samples, K classes) 
-        and the labels (N: N samples).
-        """
         predictions = np.argmax(outputs.detach().numpy(), axis=1)
         return np.sum(predictions == labels.numpy())/len(outputs)
