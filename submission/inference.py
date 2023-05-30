@@ -5,8 +5,8 @@ import os
 import time
 
 from dataset import NTU60_HRNET
-from train import Model
-from c3d_modified_dlav import C3dModifiedJointFramePersDim, C3dModifiedPersJointFrameDim
+from model import Model
+from c3d_modified import C3dModifiedJointFramePersDim, C3dModifiedPersJointFrameDim
 
 torch.cuda.empty_cache()
 
@@ -15,8 +15,8 @@ NUM_PERS_MAX = 2
 COORD_2D = 2
 NUM_JOINTS = 17
 
-batch_size = 1
-num_epochs = 2
+batch_size = 50
+
 
 data_path = f'{os.getcwd()}/data/nturgbd/ntu60_hrnet.pkl'
 label_map_path = f'{os.getcwd()}/tools/data/label_map/nturgbd_120.txt'
@@ -36,9 +36,7 @@ elif model_name == 'pjfd':
 
 
 test_dataset = NTU60_HRNET(data_path, label_map_path, NUM_PERS_MAX, NUM_FRAMES_MIN, NUM_JOINTS, permute_order, "val")
-test_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-
-summary(model, input_size=input_size)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 TestModelDlav = Model(model)
 TestModelDlav.load_pretrained_model(model_savepath +  "bestmodel.pth")
@@ -48,4 +46,4 @@ stop = time.perf_counter()
 print(f'The prediction is done in {stop - start} seconds for {len(test_dataset)} predictions.')
 print(f"testing metrics : accuracy = {acc}  loss = {loss}")
 
-TestModelDLav.show_prediction(test_dataset.skeletons[0].numpy(), full_outputs[0], full_labels[0], full_names[0], test_dataset.label_dict, model_savepath, video_path)
+TestModelDlav.show_prediction(test_dataset.skeletons[0].cpu().numpy(), full_outputs[0], full_labels[0], full_names[0], test_dataset.label_dict, model_savepath, video_path)

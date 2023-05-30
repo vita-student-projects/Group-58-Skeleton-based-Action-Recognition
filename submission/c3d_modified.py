@@ -45,7 +45,6 @@ class C3dModifiedJointFramePersDim(nn.Module):
         self.temporal_downsample = temporal_downsample
         pool_kernel, pool_stride = (3, 2, 2), (2, 1, 1)
         if not self.temporal_downsample:
-            print('hey brUAW')
             pool_kernel, pool_stride = (3, 2, 2), (2, 1, 1)
 
         c3d_conv_param = dict(kernel_size=(3, 2, 2), padding=(1, 1, 1), conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)

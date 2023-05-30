@@ -12,10 +12,10 @@ class NTU60_HRNET(Dataset):
     def __init__(self, data_path, label_path, nb_pers_max, nb_frames, nb_joints, permute_order, phase):
 
       super(NTU60_HRNET, self).__init__()
+      print('---------------------------- Loading data ---------------------------')
 
-      # Choose device
+      # Use GPU if available
       self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-      print('device data', self.device)
 
       # Store class attributes
       self.permute_order = permute_order
