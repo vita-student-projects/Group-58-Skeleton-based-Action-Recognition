@@ -2,6 +2,9 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 import pickle
+import matplotlib.pyplot as plt
+
+NUM_FRAMES_MIN = 32
 
 class NTU60_HRNET(Dataset):
     phase_dict = {
@@ -29,14 +32,21 @@ class NTU60_HRNET(Dataset):
       
       # Collect the data
       self.raw_data = pickle.load(open(data_path, "rb"))
+      print(self.raw_data.keys())
+      print(self.raw_data['split'].keys())
+      print(self.raw_data['annotations'][0].keys())
+      print(self.raw_data['annotations'][0]['keypoint'].shape)
+      print(self.raw_data['annotations'][0]['img_shape'])
+ 
       self.data_size = np.shape(self.raw_data["split"][self.phase_dict[self.phase]])
       self.skeletons, self.labels, self.names = self.collect_data()
     
 
-    def collect_data(self):
+    def collect_data(self):      
       skeletons = np.zeros((self.data_size[0], self.nb_pers_max, self.nb_frames, self.nb_joints, 2), dtype=np.float32)
       labels = np.zeros(self.data_size, dtype=np.int64)
       names = []
+      list_total_frames = []
 
       frame_dir = []
       for i in range(len(self.raw_data['annotations'])):
@@ -45,10 +55,25 @@ class NTU60_HRNET(Dataset):
 
       for i in range(self.data_size[0]):
         ind = np.argwhere(frame_dir == self.raw_data["split"][self.phase_dict[self.phase]][i]).squeeze()
-        skeletons[i, :self.raw_data['annotations'][ind]['keypoint'].shape[0]] = self.raw_data['annotations'][ind]['keypoint'][:, :self.nb_frames]
+        total_frames = self.raw_data['annotations'][ind]['total_frames']
+        frames_indices = np.linspace(0, total_frames, num=NUM_FRAMES_MIN, endpoint=False, dtype=int) # sampling along time
+        list_total_frames.append(total_frames)
+        
+        num_pers = self.raw_data['annotations'][ind]['keypoint'].shape[0]
+        skeletons[i, :num_pers] = self.raw_data['annotations'][ind]['keypoint'][:, frames_indices]
         labels[i] = self.raw_data['annotations'][ind]['label']
         names.append(self.raw_data["split"][self.phase_dict[self.phase]][i])
-        
+      fig, ax = plt.subplots()
+      ax.plot(list_total_frames)
+      plt.show()
+
+      print('indice of problematic case', np.argmin(skeletons[:, :, :, :, 0]), np.argmax(skeletons[:, :, :, :, 0]), np.argmin(skeletons[:, :, :, :, 1]), np.argmax(skeletons[:, :, :, :, 1]))
+      print(skeletons[:, : , :, :, 0].shape)
+      # Normalization
+      height, width = self.raw_data['annotations'][ind]['img_shape']
+      skeletons[:, :, :, :, 0] = skeletons[:, :, :, :, 0]/width
+      skeletons[:, :, :, :, 1] = skeletons[:, :, :, :, 1]/height
+      print('check', np.min(skeletons[:, :, :, :, 0]), np.max(skeletons[:, :, :, :, 0]), np.min(skeletons[:, :, :, :, 1]), np.max(skeletons[:, :, :, :, 1]))
       skeletons = torch.from_numpy(skeletons)
       print('before', skeletons.size())  
       skeletons = torch.permute(skeletons, self.permute_order).to(self.device)

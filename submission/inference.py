@@ -46,4 +46,5 @@ stop = time.perf_counter()
 print(f'The prediction is done in {stop - start} seconds for {len(test_dataset)} predictions.')
 print(f"testing metrics : accuracy = {acc}  loss = {loss}")
 
-TestModelDlav.show_prediction(test_dataset.skeletons[0].cpu().numpy(), full_outputs[0], full_labels[0], full_names[0], test_dataset.label_dict, model_savepath, video_path)
+idx = 1243900
+TestModelDlav.show_prediction(test_dataset.skeletons[idx].cpu().numpy(), full_outputs[idx], full_labels[idx], full_names[idx], test_dataset.label_dict, model_savepath, video_path)
