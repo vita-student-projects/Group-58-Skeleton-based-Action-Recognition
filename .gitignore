@@ -13,6 +13,7 @@ build/
 develop-eggs/
 dist/
 downloads/
+ntu_samples/
 eggs/
 .eggs/
 lib/
