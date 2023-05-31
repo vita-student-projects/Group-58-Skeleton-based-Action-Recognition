@@ -46,5 +46,19 @@ stop = time.perf_counter()
 print(f'The prediction is done in {stop - start} seconds for {len(test_dataset)} predictions.')
 print(f"testing metrics : accuracy = {acc}  loss = {loss}")
 
-idx = 1243900
-TestModelDlav.show_prediction(test_dataset.skeletons[idx].cpu().numpy(), full_outputs[idx], full_labels[idx], full_names[idx], test_dataset.label_dict, model_savepath, video_path)
+# Loop to select a video that is present in ntu_samples
+find_flag = False
+for f in os.listdir(video_path):
+  videoname = f.split('.')[0].split('_')[0]
+  print(videoname)
+  for i in range(len(test_dataset)):
+    if test_dataset.names[i] == videoname:
+      idx=i
+      find_flag = True
+      print(idx)
+      break
+  if find_flag:
+    break
+
+# Print results and skeletons on video
+TestModelDlav.show_prediction(test_dataset.skeletons[idx].cpu().numpy(), full_outputs[idx], full_labels[idx], full_names[idx], test_dataset.label_dict, permute_order, model_savepath, video_path)
